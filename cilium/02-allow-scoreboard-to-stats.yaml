@@ -1,0 +1,20 @@
+# L3/L4 Policy: Allow scoreboard-api to reach stats-service on port 8080.
+# Only pods with label app=scoreboard-api can talk to stats-service.
+# This is like allowing only the broadcast booth to access the stats room.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-scoreboard-to-stats
+  namespace: cilium-demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: stats-service
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: scoreboard-api
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP

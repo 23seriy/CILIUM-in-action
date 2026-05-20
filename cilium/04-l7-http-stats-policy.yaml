@@ -1,0 +1,29 @@
+# L7 HTTP Policy: Allow only GET requests to stats-service.
+# POST and DELETE are blocked — even from scoreboard-api.
+# This is Cilium's killer feature: HTTP-aware network policies.
+# Think of it as: "You can look at the stat sheet, but you can't edit it."
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: l7-stats-read-only
+  namespace: cilium-demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: stats-service
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: scoreboard-api
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http:
+              - method: GET
+                path: "/api/stats.*"
+              - method: GET
+                path: "/health"
+              - method: GET
+                path: "/"

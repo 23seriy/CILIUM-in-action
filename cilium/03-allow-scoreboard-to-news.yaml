@@ -1,0 +1,19 @@
+# L3/L4 Policy: Allow scoreboard-api to reach news-service on port 8080.
+# Same principle — only the public-facing scoreboard can fetch headlines.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-scoreboard-to-news
+  namespace: cilium-demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: news-service
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: scoreboard-api
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP

@@ -1,0 +1,34 @@
+# DNS-aware Egress Policy: Control which external domains pods can reach.
+# scoreboard-api can resolve internal DNS only.
+# This prevents data exfiltration — pods can't phone home to unknown domains.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: scoreboard-egress-dns
+  namespace: cilium-demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: scoreboard-api
+  egress:
+    # Allow DNS resolution
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    # Allow traffic to internal services
+    - toEndpoints:
+        - matchLabels:
+            app: stats-service
+        - matchLabels:
+            app: news-service
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP

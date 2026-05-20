@@ -1,0 +1,22 @@
+# A "rogue" pod that simulates an attacker or misconfigured service
+# trying to access internal services it shouldn't reach.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rogue-pod
+  namespace: cilium-demo
+  labels:
+    app: rogue-pod
+    role: attacker
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:8.5.0
+      command: ["sleep", "3600"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi

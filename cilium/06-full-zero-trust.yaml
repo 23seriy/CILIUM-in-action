@@ -1,0 +1,120 @@
+# Full Zero-Trust Setup: Combines default-deny with explicit allow rules.
+# This is the complete "production-ready" policy set.
+#
+# Traffic flow:
+#   External → scoreboard-api (port 8080) ✅
+#   scoreboard-api → stats-service (GET only) ✅
+#   scoreboard-api → news-service (GET only) ✅
+#   rogue-pod → anything ❌
+#   stats-service → news-service ❌
+#   news-service → stats-service ❌
+---
+# 1. Default deny everything
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: zero-trust-deny-all
+  namespace: cilium-demo
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress:
+    # Always allow DNS
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+---
+# 2. Allow external traffic to scoreboard-api
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: zero-trust-allow-scoreboard-ingress
+  namespace: cilium-demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: scoreboard-api
+  ingress:
+    - toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+---
+# 3. Allow scoreboard-api egress to internal services
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: zero-trust-scoreboard-egress
+  namespace: cilium-demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: scoreboard-api
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app: stats-service
+        - matchLabels:
+            app: news-service
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+---
+# 4. Allow stats-service ingress from scoreboard-api (GET only)
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: zero-trust-stats-ingress
+  namespace: cilium-demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: stats-service
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: scoreboard-api
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http:
+              - method: GET
+---
+# 5. Allow news-service ingress from scoreboard-api only
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: zero-trust-news-ingress
+  namespace: cilium-demo
+spec:
+  endpointSelector:
+    matchLabels:
+      app: news-service
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: scoreboard-api
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
