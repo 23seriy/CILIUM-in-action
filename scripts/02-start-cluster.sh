@@ -35,22 +35,33 @@ if minikube status -p "$PROFILE" &>/dev/null 2>&1; then
     fi
 fi
 
-# Start Minikube without kube-proxy (Cilium will replace it)
+# Start Minikube with no CNI (Cilium will be installed next)
 info "Starting Minikube (profile=$PROFILE, k8s=$K8S_VERSION, CPUs=$CPUS, RAM=${MEMORY}MB)..."
-info "Starting WITHOUT kube-proxy — Cilium will handle service routing via eBPF."
 minikube start \
     -p "$PROFILE" \
     --kubernetes-version="$K8S_VERSION" \
     --cpus="$CPUS" \
     --memory="$MEMORY" \
     --cni=false \
-    --extra-config=kubeadm.skipPhases=addon/kube-proxy \
     --driver=docker
+
+# Remove kube-proxy so Cilium can replace it with eBPF
+info "Removing kube-proxy (Cilium will handle service routing via eBPF)..."
+kubectl -n kube-system delete daemonset kube-proxy --ignore-not-found
+kubectl -n kube-system delete configmap kube-proxy --ignore-not-found
+
+# Discover the API server's direct address (Cilium needs this to bootstrap
+# without kube-proxy — otherwise it can't resolve the kubernetes ClusterIP).
+API_SERVER_IP=$(kubectl get endpoints kubernetes -o jsonpath='{.subsets[0].addresses[0].ip}')
+API_SERVER_PORT=$(kubectl get endpoints kubernetes -o jsonpath='{.subsets[0].ports[0].port}')
+info "API server at ${API_SERVER_IP}:${API_SERVER_PORT}"
 
 # Install Cilium with kubeProxyReplacement
 info "Installing Cilium with kube-proxy replacement and Hubble..."
 cilium install \
     --set kubeProxyReplacement=true \
+    --set k8sServiceHost="${API_SERVER_IP}" \
+    --set k8sServicePort="${API_SERVER_PORT}" \
     --set hubble.relay.enabled=true \
     --set hubble.ui.enabled=true
 

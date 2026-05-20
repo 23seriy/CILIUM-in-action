@@ -12,16 +12,12 @@ warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 
 install_if_missing() {
     local tool=$1
-    local tap=${2:-""}
+    local formula=${2:-$1}
     if command -v "$tool" &>/dev/null; then
         info "$tool already installed: $(command -v "$tool")"
     else
-        if [ -n "$tap" ]; then
-            info "Tapping $tap..."
-            brew tap "$tap"
-        fi
-        info "Installing $tool via Homebrew..."
-        brew install "$tool"
+        info "Installing $tool via Homebrew (formula: $formula)..."
+        brew install "$formula"
     fi
 }
 
@@ -53,8 +49,8 @@ info "Docker is running"
 install_if_missing minikube
 install_if_missing kubectl
 install_if_missing helm
-install_if_missing cilium
-install_if_missing hubble
+install_if_missing cilium cilium-cli
+install_if_missing hubble hubble
 
 echo ""
 echo "================================================"
