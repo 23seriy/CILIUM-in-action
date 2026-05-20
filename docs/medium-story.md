@@ -68,36 +68,46 @@ Major adopters: Google (GKE), AWS (EKS), Azure (AKS), Datadog, Cloudflare, and m
 
 ## Step 1: Start the Cluster Without kube-proxy
 
-This is the first "whoa" moment. We're starting Minikube and **skipping kube-proxy entirely:**
+This is the first "whoa" moment. We start Minikube with no CNI, then **remove kube-proxy** and let Cilium take over:
 
 ```bash
+# Start the cluster with no CNI
 minikube start \
     -p cilium-demo \
     --kubernetes-version=v1.32.0 \
     --cpus=4 \
     --memory=8192 \
     --cni=false \
-    --extra-config=kubeadm.skipPhases=addon/kube-proxy \
     --driver=docker
+
+# Remove kube-proxy — Cilium will replace it
+kubectl -n kube-system delete daemonset kube-proxy --ignore-not-found
+kubectl -n kube-system delete configmap kube-proxy --ignore-not-found
 ```
 
-The `--extra-config=kubeadm.skipPhases=addon/kube-proxy` flag tells kubeadm to not install kube-proxy at all. No iptables rules, no IPVS. Nothing.
-
-Then we install Cilium with kube-proxy replacement enabled:
+Then we install Cilium with kube-proxy replacement enabled. The key detail: we pass the API server's direct IP so Cilium can bootstrap without needing kube-proxy to route to the `kubernetes` ClusterIP:
 
 ```bash
+# Get the API server's direct address
+API_SERVER_IP=$(kubectl get endpoints kubernetes -o jsonpath='{.subsets[0].addresses[0].ip}')
+API_SERVER_PORT=$(kubectl get endpoints kubernetes -o jsonpath='{.subsets[0].ports[0].port}')
+
 cilium install \
     --set kubeProxyReplacement=true \
+    --set k8sServiceHost=${API_SERVER_IP} \
+    --set k8sServicePort=${API_SERVER_PORT} \
     --set hubble.relay.enabled=true \
     --set hubble.ui.enabled=true
 ```
+
+Without `k8sServiceHost`, Cilium tries to reach the API server via the `kubernetes` ClusterIP — but nobody is routing that traffic anymore (we just deleted kube-proxy). Classic chicken-and-egg problem.
 
 Cilium's eBPF programs now handle all service routing — ClusterIP, NodePort, LoadBalancer — directly in the kernel. You can verify:
 
 ```bash
 # No kube-proxy pods
 kubectl get pods -n kube-system -l k8s-app=kube-proxy
-# (empty — they were never created)
+# (empty — deleted and not coming back)
 
 # Cilium is healthy
 cilium status
@@ -107,13 +117,18 @@ cilium status
 
 ## Step 2: Deploy the NBA Services
 
-We build images inside Minikube's Docker daemon (no registry needed) and deploy:
+We build images on the host and load them into Minikube (building inside Minikube's Docker daemon can fail because external DNS may not work after kube-proxy removal):
 
 ```bash
-eval $(minikube docker-env -p cilium-demo)
+# Build locally
 docker build -t scoreboard-api:local apps/scoreboard-api/
 docker build -t stats-service:local apps/stats-service/
 docker build -t news-service:local apps/news-service/
+
+# Load into Minikube
+minikube image load scoreboard-api:local -p cilium-demo
+minikube image load stats-service:local -p cilium-demo
+minikube image load news-service:local -p cilium-demo
 
 kubectl apply -f k8s/
 ```
@@ -302,6 +317,9 @@ Now the scoreboard can only talk to kube-dns (for name resolution) and its two i
 This is my favorite part. Hubble is Cilium's observability layer. It shows you every flow in real-time:
 
 ```bash
+# Start the Hubble port-forward (required for CLI access)
+cilium hubble port-forward &
+
 # Open the Hubble UI
 cilium hubble ui
 # Opens http://localhost:12000

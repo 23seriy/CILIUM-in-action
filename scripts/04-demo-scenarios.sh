@@ -175,6 +175,10 @@ kubectl apply -f "$PROJECT_DIR/cilium/03-allow-scoreboard-to-news.yaml"
 sleep 2
 
 info "Hubble lets you observe all traffic flows in real-time."
+info "First, start the Hubble port-forward (required for CLI access):"
+echo ""
+echo "    cilium hubble port-forward &"
+echo ""
 info "Open the Hubble UI in another terminal:"
 echo ""
 echo "    cilium hubble ui"

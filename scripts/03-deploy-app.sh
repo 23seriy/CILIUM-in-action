@@ -20,11 +20,8 @@ echo "  🐝 Cilium in Action — Deploy NBA Services"
 echo "================================================"
 echo ""
 
-# Point Docker at Minikube's daemon
-info "Configuring Docker to use Minikube's daemon..."
-eval $(minikube docker-env -p "$PROFILE")
-
-# Build images
+# Build images locally (Minikube's Docker daemon may lack external DNS after
+# kube-proxy removal, so we build on the host and load into Minikube).
 info "Building scoreboard-api image..."
 docker build -t scoreboard-api:local "$PROJECT_DIR/apps/scoreboard-api"
 
@@ -33,6 +30,12 @@ docker build -t stats-service:local "$PROJECT_DIR/apps/stats-service"
 
 info "Building news-service image..."
 docker build -t news-service:local "$PROJECT_DIR/apps/news-service"
+
+# Load images into Minikube
+info "Loading images into Minikube..."
+minikube image load scoreboard-api:local -p "$PROFILE"
+minikube image load stats-service:local -p "$PROFILE"
+minikube image load news-service:local -p "$PROFILE"
 
 # Create namespace
 info "Creating namespace '$NAMESPACE'..."

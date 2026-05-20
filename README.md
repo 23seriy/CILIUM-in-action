@@ -4,7 +4,7 @@ A hands-on project demonstrating **Cilium** — eBPF-powered networking, securit
 
 The demo uses three NBA microservices to showcase how Cilium enforces zero-trust networking: only the public scoreboard can reach internal stats and news services, and even then, only with read-only HTTP methods.
 
-![Cilium](https://img.shields.io/badge/Cilium-1.16-F8C517?logo=cilium&logoColor=white)
+![Cilium](https://img.shields.io/badge/Cilium-1.19-F8C517?logo=cilium&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-1.32-326CE5?logo=kubernetes&logoColor=white)
 ![Minikube](https://img.shields.io/badge/Minikube-local-F7B93E?logo=kubernetes&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
@@ -92,7 +92,7 @@ Creates a Minikube profile called `cilium-demo` on **Kubernetes `v1.32.0`** with
 ./scripts/03-deploy-app.sh
 ```
 
-Builds Docker images inside Minikube's Docker daemon (no registry needed) and deploys all NBA services plus the rogue pod.
+Builds Docker images locally and loads them into Minikube, then deploys all NBA services plus the rogue pod.
 
 ### Step 4: Access the Scoreboard
 
@@ -160,14 +160,17 @@ Scoreboard-api can only resolve and reach internal services. External domains (e
 ### 5. Hubble Flow Visualization
 
 ```bash
-# Terminal 1: Open the Hubble UI
+# Terminal 1: Start Hubble port-forward (required for CLI access)
+cilium hubble port-forward &
+
+# Terminal 2: Open the Hubble UI
 cilium hubble ui
 # Opens http://localhost:12000
 
-# Terminal 2: Watch flows from CLI
+# Terminal 3: Watch flows from CLI
 hubble observe -n cilium-demo --follow
 
-# Terminal 3: Watch dropped traffic only
+# Terminal 4: Watch dropped traffic only
 hubble observe -n cilium-demo --verdict DROPPED
 ```
 
@@ -207,6 +210,9 @@ kubectl describe cnp <policy-name> -n cilium-demo
 
 # Run Cilium connectivity test (comprehensive)
 cilium connectivity test
+
+# Hubble port-forward (required before using hubble CLI)
+cilium hubble port-forward &
 
 # Hubble CLI — observe flows
 hubble observe -n cilium-demo --follow
