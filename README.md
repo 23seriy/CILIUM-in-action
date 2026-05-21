@@ -144,10 +144,16 @@ Only pods with label `app=scoreboard-api` can reach internal services. The rogue
 ### 3. L7 HTTP Policy — Read-Only Stats Access
 
 ```bash
+# Remove the L3/L4 stats policy first — Cilium unions all matching policies,
+# so the L3/L4 rule would override the L7 restrictions.
+kubectl delete cnp allow-scoreboard-to-stats -n cilium-demo
+
 kubectl apply -f cilium/04-l7-http-stats-policy.yaml
 ```
 
 Cilium inspects HTTP requests at the kernel level. GET requests to `/api/stats*` pass through; POST and DELETE are blocked — even from the authorized scoreboard-api. This is the feature that sets Cilium apart from standard Kubernetes NetworkPolicy.
+
+> **Important:** Cilium merges all policies that match the same endpoint. If an L3/L4 policy allows all TCP on port 8080 and an L7 policy restricts to GET only, the L3/L4 rule wins. Always remove the broader policy before applying the more restrictive one.
 
 ### 4. DNS Egress Policy — Control Outbound Access
 

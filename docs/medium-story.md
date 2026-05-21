@@ -240,7 +240,12 @@ spec:
                 path: "/health"
 ```
 
+**Important gotcha:** Cilium unions all policies matching the same endpoint. If the L3/L4 policy from Scenario 2 is still active, it allows all TCP on port 8080 — overriding the L7 restrictions. You must remove it first:
+
 ```bash
+# Remove the broad L3/L4 policy so the L7 restrictions take effect
+kubectl delete cnp allow-scoreboard-to-stats -n cilium-demo
+
 kubectl apply -f cilium/04-l7-http-stats-policy.yaml
 ```
 
@@ -346,26 +351,78 @@ This is what debugging network issues should look like. Instead of guessing with
 The final setup combines everything into a production-ready posture:
 
 ```bash
+# Clean slate — remove any policies from previous scenarios
+kubectl delete cnp --all -n cilium-demo
+
 kubectl apply -f cilium/06-full-zero-trust.yaml
 ```
 
-This applies:
+This applies five policies at once:
 1. **Default deny** — nothing can talk to anything
 2. **DNS exception** — pods can resolve internal names
 3. **Explicit ingress** — scoreboard-api accepts external traffic
 4. **Explicit egress** — scoreboard-api can reach stats + news
 5. **L7 restriction** — stats-service only accepts GET
 
-The result:
+Let's verify every traffic path. This is the moment of truth:
+
+```bash
+# ✅ Authorized read — scoreboard can fetch stats
+kubectl exec -n cilium-demo deploy/scoreboard-api -- \
+    python -c "import requests; print('scoreboard→stats GET:', requests.get('http://stats-service:8080/api/stats/game/1').status_code)"
+# scoreboard→stats GET: 200
+
+# ❌ L7 block — same source, but POST is forbidden
+kubectl exec -n cilium-demo deploy/scoreboard-api -- \
+    python -c "import requests; print('scoreboard→stats POST:', requests.post('http://stats-service:8080/api/stats/update', json={}).status_code)"
+# scoreboard→stats POST: 403
+
+# ✅ Authorized read — scoreboard can fetch news
+kubectl exec -n cilium-demo deploy/scoreboard-api -- \
+    python -c "import requests; print('scoreboard→news GET:', requests.get('http://news-service:8080/api/news').status_code)"
+# scoreboard→news GET: 200
+
+# ❌ Rogue pod — completely locked out
+kubectl exec -n cilium-demo rogue-pod -- \
+    curl -s --connect-timeout 3 -o /dev/null -w 'rogue→stats: %{http_code}\n' http://stats-service:8080/api/stats
+# rogue→stats: 000 (timeout — packet dropped by eBPF)
+
+# ❌ Lateral movement — stats-service can't reach news-service
+kubectl exec -n cilium-demo deploy/stats-service -- \
+    python -c "
+import urllib.request
+try:
+    r = urllib.request.urlopen('http://news-service:8080/api/news', timeout=3)
+    print('stats→news:', r.status)
+except Exception as e:
+    print('stats→news: BLOCKED -', type(e).__name__)
+"
+# stats→news: BLOCKED - URLError
+
+# ❌ External egress — scoreboard can't phone home
+kubectl exec -n cilium-demo deploy/scoreboard-api -- \
+    python -c "
+import requests
+try:
+    r = requests.get('https://httpbin.org/get', timeout=3)
+    print('scoreboard→external:', r.status_code)
+except Exception as e:
+    print('scoreboard→external: BLOCKED -', type(e).__name__)
+"
+# scoreboard→external: BLOCKED - ConnectionError
+```
+
+Seven tests, seven correct verdicts:
 
 | Source | → Destination | Method | Verdict |
 |--------|--------------|--------|---------|
-| scoreboard-api | stats-service | GET | ✅ |
-| scoreboard-api | stats-service | POST | ❌ |
-| scoreboard-api | news-service | GET | ✅ |
-| rogue-pod | stats-service | any | ❌ |
-| rogue-pod | news-service | any | ❌ |
-| stats-service | news-service | any | ❌ |
+| scoreboard-api | stats-service | GET | ✅ 200 |
+| scoreboard-api | stats-service | POST | ❌ 403 |
+| scoreboard-api | news-service | GET | ✅ 200 |
+| rogue-pod | stats-service | any | ❌ timeout |
+| rogue-pod | news-service | any | ❌ timeout |
+| stats-service | news-service | any | ❌ blocked |
+| scoreboard-api | external | any | ❌ blocked |
 
 Every connection is intentional. Every other connection is denied. That's zero-trust.
 
