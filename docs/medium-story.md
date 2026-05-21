@@ -240,7 +240,12 @@ spec:
                 path: "/health"
 ```
 
+**Important gotcha:** Cilium unions all policies matching the same endpoint. If the L3/L4 policy from Scenario 2 is still active, it allows all TCP on port 8080 — overriding the L7 restrictions. You must remove it first:
+
 ```bash
+# Remove the broad L3/L4 policy so the L7 restrictions take effect
+kubectl delete cnp allow-scoreboard-to-stats -n cilium-demo
+
 kubectl apply -f cilium/04-l7-http-stats-policy.yaml
 ```
 
