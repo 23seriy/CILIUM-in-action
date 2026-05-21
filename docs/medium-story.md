@@ -66,6 +66,22 @@ Major adopters: Google (GKE), AWS (EKS), Azure (AKS), Datadog, Cloudflare, and m
 
 ---
 
+## Prerequisites
+
+- **Docker Desktop** running
+- **Homebrew** (macOS) — the install script handles everything else
+- ~8 GB free RAM for Minikube
+
+```bash
+git clone https://github.com/23seriy/cilium-in-action.git
+cd cilium-in-action
+./scripts/01-install-prerequisites.sh
+```
+
+This installs `minikube`, `kubectl`, `helm`, `cilium` CLI, and `hubble` CLI if not already present.
+
+---
+
 ## Step 1: Start the Cluster Without kube-proxy
 
 This is the first "whoa" moment. We start Minikube with no CNI, then **remove kube-proxy** and let Cilium take over:
@@ -253,18 +269,19 @@ Now test all three HTTP methods:
 
 ```bash
 # GET — allowed ✅
-curl http://localhost:9080/scores/1
-# Returns game data with player stats
+kubectl exec -n cilium-demo deploy/scoreboard-api -- \
+    python -c "import requests; print('GET:', requests.get('http://stats-service:8080/api/stats/game/1').status_code)"
+# GET: 200
 
 # POST — blocked ❌
 kubectl exec -n cilium-demo deploy/scoreboard-api -- \
-    python -c "import requests; print(requests.post('http://stats-service:8080/api/stats/update', json={}).status_code)"
-# 403 (Access denied by Cilium L7 policy)
+    python -c "import requests; print('POST:', requests.post('http://stats-service:8080/api/stats/update', json={}).status_code)"
+# POST: 403
 
 # DELETE — blocked ❌
 kubectl exec -n cilium-demo deploy/scoreboard-api -- \
-    python -c "import requests; print(requests.delete('http://stats-service:8080/api/stats/game/1').status_code)"
-# 403 (Access denied by Cilium L7 policy)
+    python -c "import requests; print('DELETE:', requests.delete('http://stats-service:8080/api/stats/game/1').status_code)"
+# DELETE: 403
 ```
 
 **Read that again:** We're filtering HTTP methods and URL paths in a network policy. The scoreboard can look at the stat sheet, but it can't edit it. This happens at the kernel level, before the request reaches Flask. No sidecar proxy, no application changes.
@@ -506,7 +523,11 @@ kubectl port-forward svc/scoreboard-api 9080:8080 -n cilium-demo
 
 _The complete source code, scripts, and Cilium policies are available at [github.com/23seriy/cilium-in-action](https://github.com/23seriy/cilium-in-action). Clone it, run the scripts, break things, and learn eBPF networking by doing._
 
-_If you found this useful, previously in this series: [Argo Rollouts in Action](https://medium.com/@sergeiolshanetski/argo-rollouts-in-action), [Crossplane in Action](https://medium.com/@sergeiolshanetski), [Istio in Action](https://medium.com/@sergeiolshanetski/istio-in-action), and [KEDA in Action](https://medium.com/@sergeiolshanetski/keda-in-action)._
+_Previously in this series:_
+- _[Argo Rollouts in Action](https://medium.com/@sergeiolshanetski/argo-rollouts-in-action-progressive-delivery-with-canary-blue-green-and-automated-analysis-on-625f7fe9b61a)_
+- _[Crossplane in Action](https://medium.com/@sergeiolshanetski/crossplane-in-action-provisioning-aws-resources-from-kubernetes-on-your-laptop-692d3aa35c6a)_
+- _[Istio in Action](https://medium.com/@sergeiolshanetski/istio-in-action-a-hands-on-guide-to-service-mesh-on-your-laptop-e5ccac34262e)_
+- _[KEDA in Action](https://medium.com/@sergeiolshanetski/keda-in-action-building-event-driven-autoscaling-demos-with-kubernetes-redis-rabbitmq-and-an-06f7dd7bd70c)_
 
 ---
 
