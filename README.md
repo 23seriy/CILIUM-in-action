@@ -10,7 +10,7 @@ The demo uses three NBA microservices to showcase how Cilium enforces zero-trust
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![eBPF](https://img.shields.io/badge/eBPF-kernel-FF6600?logoColor=white)
 
-> 📝 **Read the full walkthrough on Medium:** _[Link coming soon]_
+> 📝 **Read the full walkthrough on Medium:** [Cilium in Action — eBPF-Powered Networking, Security, and Observability for Kubernetes](https://medium.com/@sergeiolshanetski/cilium-in-action-ebpf-powered-networking-security-and-observability-for-kubernetes-without-9a0decd90b74)
 
 ## 🏗️ Architecture
 
@@ -265,8 +265,6 @@ cilium-in-action/
 │   ├── 03-deploy-app.sh
 │   ├── 04-demo-scenarios.sh
 │   └── 05-teardown.sh
-├── docs/
-│   └── medium-story.md         # Full Medium article
 └── .gitignore
 ```
 
