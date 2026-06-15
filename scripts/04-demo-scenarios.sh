@@ -52,7 +52,7 @@ info "1a. Scoreboard calls stats-service (should work):"
 echo "    curl http://localhost:9080/scores/1"
 echo ""
 kubectl exec -n "$NAMESPACE" deploy/scoreboard-api -- \
-    python -c "import requests; r=requests.get('http://stats-service:8080/api/stats/game/1'); print(f'  Status: {r.status_code}')" 2>/dev/null && \
+    python -c "import requests,sys; r=requests.get('http://stats-service:8080/api/stats/game/1'); print(f'  Status: {r.status_code}'); sys.exit(0 if r.status_code < 400 else 1)" 2>/dev/null && \
     info "✅ scoreboard → stats-service: ALLOWED" || \
     error "❌ scoreboard → stats-service: BLOCKED"
 
@@ -81,7 +81,7 @@ sleep 3
 
 info "2a. Scoreboard calls stats-service:"
 kubectl exec -n "$NAMESPACE" deploy/scoreboard-api -- \
-    python -c "import requests; r=requests.get('http://stats-service:8080/api/stats/game/1'); print(f'  Status: {r.status_code}')" 2>/dev/null && \
+    python -c "import requests,sys; r=requests.get('http://stats-service:8080/api/stats/game/1'); print(f'  Status: {r.status_code}'); sys.exit(0 if r.status_code < 400 else 1)" 2>/dev/null && \
     info "✅ scoreboard → stats-service: ALLOWED" || \
     error "❌ scoreboard → stats-service: BLOCKED (unexpected)"
 
@@ -110,21 +110,21 @@ sleep 3
 
 info "3a. GET /api/stats/game/1 (should work):"
 kubectl exec -n "$NAMESPACE" deploy/scoreboard-api -- \
-    python -c "import requests; r=requests.get('http://stats-service:8080/api/stats/game/1'); print(f'  Status: {r.status_code}')" 2>/dev/null && \
+    python -c "import requests,sys; r=requests.get('http://stats-service:8080/api/stats/game/1'); print(f'  Status: {r.status_code}'); sys.exit(0 if r.status_code < 400 else 1)" 2>/dev/null && \
     info "✅ GET stats: ALLOWED" || \
     error "❌ GET stats: BLOCKED (unexpected)"
 
 echo ""
 info "3b. POST /api/stats/update (should be BLOCKED by L7 policy):"
 kubectl exec -n "$NAMESPACE" deploy/scoreboard-api -- \
-    python -c "import requests; r=requests.post('http://stats-service:8080/api/stats/update', json={'test': True}); print(f'  Status: {r.status_code}')" 2>/dev/null && \
+    python -c "import requests,sys; r=requests.post('http://stats-service:8080/api/stats/update', json={'test': True}); print(f'  Status: {r.status_code}'); sys.exit(0 if r.status_code < 400 else 1)" 2>/dev/null && \
     warn "⚠️  POST stats: ALLOWED (L7 policy may need time)" || \
     info "✅ POST stats: BLOCKED by Cilium L7 HTTP policy"
 
 echo ""
 info "3c. DELETE /api/stats/game/1 (should be BLOCKED):"
 kubectl exec -n "$NAMESPACE" deploy/scoreboard-api -- \
-    python -c "import requests; r=requests.delete('http://stats-service:8080/api/stats/game/1'); print(f'  Status: {r.status_code}')" 2>/dev/null && \
+    python -c "import requests,sys; r=requests.delete('http://stats-service:8080/api/stats/game/1'); print(f'  Status: {r.status_code}'); sys.exit(0 if r.status_code < 400 else 1)" 2>/dev/null && \
     warn "⚠️  DELETE stats: ALLOWED (L7 policy may need time)" || \
     info "✅ DELETE stats: BLOCKED by Cilium L7 HTTP policy"
 
@@ -147,7 +147,7 @@ sleep 3
 
 info "4a. Scoreboard → stats-service (internal, should work):"
 kubectl exec -n "$NAMESPACE" deploy/scoreboard-api -- \
-    python -c "import requests; r=requests.get('http://stats-service:8080/health'); print(f'  Status: {r.status_code}')" 2>/dev/null && \
+    python -c "import requests,sys; r=requests.get('http://stats-service:8080/health'); print(f'  Status: {r.status_code}'); sys.exit(0 if r.status_code < 400 else 1)" 2>/dev/null && \
     info "✅ Internal traffic: ALLOWED" || \
     error "❌ Internal traffic: BLOCKED (unexpected)"
 
@@ -209,13 +209,13 @@ sleep 5
 
 info "6a. Scoreboard → stats-service (GET, should work):"
 kubectl exec -n "$NAMESPACE" deploy/scoreboard-api -- \
-    python -c "import requests; r=requests.get('http://stats-service:8080/api/stats/game/1'); print(f'  Status: {r.status_code}')" 2>/dev/null && \
+    python -c "import requests,sys; r=requests.get('http://stats-service:8080/api/stats/game/1'); print(f'  Status: {r.status_code}'); sys.exit(0 if r.status_code < 400 else 1)" 2>/dev/null && \
     info "✅ ALLOWED" || error "❌ BLOCKED (unexpected)"
 
 echo ""
 info "6b. Scoreboard → news-service (should work):"
 kubectl exec -n "$NAMESPACE" deploy/scoreboard-api -- \
-    python -c "import requests; r=requests.get('http://news-service:8080/api/news'); print(f'  Status: {r.status_code}')" 2>/dev/null && \
+    python -c "import requests,sys; r=requests.get('http://news-service:8080/api/news'); print(f'  Status: {r.status_code}'); sys.exit(0 if r.status_code < 400 else 1)" 2>/dev/null && \
     info "✅ ALLOWED" || error "❌ BLOCKED (unexpected)"
 
 echo ""
@@ -235,7 +235,7 @@ kubectl exec -n "$NAMESPACE" rogue-pod -- \
 echo ""
 info "6e. Scoreboard → stats-service POST (should be BLOCKED by L7):"
 kubectl exec -n "$NAMESPACE" deploy/scoreboard-api -- \
-    python -c "import requests; r=requests.post('http://stats-service:8080/api/stats/update', json={}); print(f'  Status: {r.status_code}')" 2>/dev/null && \
+    python -c "import requests,sys; r=requests.post('http://stats-service:8080/api/stats/update', json={}); print(f'  Status: {r.status_code}'); sys.exit(0 if r.status_code < 400 else 1)" 2>/dev/null && \
     warn "⚠️  POST ALLOWED (check L7 rules)" || \
     info "✅ POST BLOCKED — read-only access enforced"
 
