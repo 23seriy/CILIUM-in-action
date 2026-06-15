@@ -28,3 +28,4 @@ kubeconfig
 # Misc
 *.log
 *.tmp
+.serena
