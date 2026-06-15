@@ -1,0 +1,167 @@
+name: Validate
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  shellcheck:
+    name: Shell Script Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+      - name: Run shellcheck on all scripts
+        run: shellcheck -x scripts/*.sh
+
+  yaml-lint:
+    name: YAML Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: pip install yamllint
+      - name: Lint manifests and policies
+        run: |
+          find k8s -name '*.yaml' -print0 | xargs -0 yamllint -d relaxed
+          yamllint -d relaxed cilium/*.yaml
+
+  cilium-policy-validation:
+    name: Cilium Policy Syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PyYAML
+        run: pip install pyyaml
+      - name: Validate policy YAML structure
+        run: |
+          python3 << 'EOF'
+          import glob, sys, yaml
+
+          errors = 0
+          valid_kinds = {"CiliumNetworkPolicy", "CiliumClusterwideNetworkPolicy"}
+          for policy in sorted(glob.glob("cilium/*.yaml")):
+              print(f"Validating {policy}")
+              try:
+                  with open(policy) as f:
+                      docs = [d for d in yaml.safe_load_all(f) if d]
+                  if not docs:
+                      print(f"  ERROR: {policy} is empty")
+                      errors += 1
+                      continue
+                  kinds = [d.get("kind") for d in docs]
+                  if not any(k in valid_kinds for k in kinds):
+                      print(f"  ERROR: {policy} contains no CiliumNetworkPolicy / CiliumClusterwideNetworkPolicy")
+                      errors += 1
+                      continue
+                  # Spec sanity check
+                  for d in docs:
+                      if d.get("kind") in valid_kinds:
+                          spec = d.get("spec") or {}
+                          if not any(k in spec for k in ("endpointSelector", "ingress", "egress", "nodeSelector")):
+                              print(f"  ERROR: {policy} spec lacks endpointSelector/ingress/egress/nodeSelector")
+                              errors += 1
+                  print(f"  OK — kinds: {kinds}")
+              except Exception as e:
+                  print(f"  ERROR: {e}")
+                  errors += 1
+
+          if errors:
+              print(f"\n{errors} policy file(s) failed validation")
+              sys.exit(1)
+          print("\nAll policies have valid YAML and proper structure")
+          EOF
+
+  docker-lint:
+    name: Dockerfile Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install hadolint
+        run: |
+          wget -q -O /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          chmod +x /tmp/hadolint
+          sudo mv /tmp/hadolint /usr/local/bin/hadolint
+      - name: Lint Dockerfiles
+        run: |
+          hadolint apps/scoreboard-api/Dockerfile || true
+          hadolint apps/stats-service/Dockerfile || true
+          hadolint apps/news-service/Dockerfile || true
+        continue-on-error: true
+
+  script-syntax:
+    name: Script Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check bash syntax
+        run: |
+          for script in scripts/*.sh; do
+            echo "Checking $script"
+            bash -n "$script"
+          done
+
+  python-lint:
+    name: Python Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install linting tools
+        run: pip install flake8 black
+      - name: Compile-check apps
+        run: |
+          python -m py_compile apps/scoreboard-api/app.py
+          python -m py_compile apps/stats-service/app.py
+          python -m py_compile apps/news-service/app.py
+      - name: flake8 (advisory)
+        run: flake8 apps/ --max-line-length=100
+        continue-on-error: true
+      - name: black --check (advisory)
+        run: black --check apps/
+        continue-on-error: true
+
+  markdown-lint:
+    name: Markdown Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nosborn/github-action-markdown-cli@v3.5.0
+        with:
+          files: .
+          config_file: .markdownlint.json
+        continue-on-error: true
+
+  docs-check:
+    name: Documentation Completeness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required docs exist
+        run: |
+          files=(
+            "README.md"
+            "LICENSE"
+            ".gitignore"
+            "CONTRIBUTING.md"
+            "CODE_OF_CONDUCT.md"
+            "SECURITY.md"
+            "TROUBLESHOOTING.md"
+            "CLAUDE.md"
+            "CHANGELOG.md"
+          )
+          for file in "${files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "Missing: $file"
+              exit 1
+            fi
+          done
+          echo "All required documentation files present"
