@@ -11,7 +11,7 @@ jobs:
     name: Shell Script Linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install shellcheck
         run: sudo apt-get install -y shellcheck
       - name: Run shellcheck on all scripts
@@ -21,7 +21,7 @@ jobs:
     name: YAML Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install yamllint
         run: pip install yamllint
       - name: Lint manifests and policies
@@ -33,8 +33,8 @@ jobs:
     name: Cilium Policy Syntax
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install PyYAML
@@ -82,7 +82,7 @@ jobs:
     name: Dockerfile Linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install hadolint
         run: |
           wget -q -O /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
@@ -99,7 +99,7 @@ jobs:
     name: Script Syntax Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Check bash syntax
         run: |
           for script in scripts/*.sh; do
@@ -111,8 +111,8 @@ jobs:
     name: Python Code Quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install linting tools
@@ -133,7 +133,7 @@ jobs:
     name: Markdown Linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: nosborn/github-action-markdown-cli@v3.5.0
         with:
           files: .
@@ -144,7 +144,7 @@ jobs:
     name: Documentation Completeness
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Check required docs exist
         run: |
           files=(
