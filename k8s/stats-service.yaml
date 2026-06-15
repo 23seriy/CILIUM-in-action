@@ -6,6 +6,10 @@ metadata:
   labels:
     app: stats-service
     role: internal
+    app.kubernetes.io/name: stats-service
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: cilium-demo
+    app.kubernetes.io/managed-by: manual
 spec:
   replicas: 1
   selector:
@@ -16,7 +20,17 @@ spec:
       labels:
         app: stats-service
         role: internal
+        app.kubernetes.io/name: stats-service
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/part-of: cilium-demo
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: stats-service
           image: stats-service:local
@@ -42,6 +56,17 @@ spec:
             limits:
               cpu: 200m
               memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
