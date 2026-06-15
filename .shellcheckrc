@@ -1,4 +1,5 @@
 # Shellcheck configuration for cilium-in-action scripts
 # SC1091: Sourced file not found in path (files are relative to repo)
 # SC2001: Use regex replacement instead of sed (sed is clearer for indentation)
-disable=SC1091,SC2001
+# SC2015: `A && B || C` is intentional in demo-scenarios.sh — B is a guaranteed-success echo helper
+disable=SC1091,SC2001,SC2015
