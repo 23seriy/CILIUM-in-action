@@ -1,5 +1,8 @@
 # A "rogue" pod that simulates an attacker or misconfigured service
 # trying to access internal services it shouldn't reach.
+#
+# It runs as non-root and drops all capabilities — its only "attack" is
+# making unauthorized HTTP calls, which Cilium blocks at the network layer.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -8,7 +11,15 @@ metadata:
   labels:
     app: rogue-pod
     role: attacker
+    app.kubernetes.io/name: rogue-pod
+    app.kubernetes.io/component: attacker-sim
+    app.kubernetes.io/part-of: cilium-demo
 spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: curl
       image: curlimages/curl:8.5.0
@@ -20,3 +31,8 @@ spec:
         limits:
           cpu: 50m
           memory: 32Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]

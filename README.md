@@ -12,6 +12,16 @@ The demo uses three NBA microservices to showcase how Cilium enforces zero-trust
 
 > 📝 **Read the full walkthrough on Medium:** [Cilium in Action — eBPF-Powered Networking, Security, and Observability for Kubernetes](https://medium.com/@sergeiolshanetski/cilium-in-action-ebpf-powered-networking-security-and-observability-for-kubernetes-without-9a0decd90b74)
 
+## 📖 Documentation
+
+- **[CLAUDE.md](CLAUDE.md)** — Architecture, file structure, and conventions for AI-assisted development
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — How to contribute (features, fixes, docs)
+- **[TESTING.md](TESTING.md)** — Manual and automated testing procedures
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** — Common issues and solutions
+- **[SECURITY.md](SECURITY.md)** — Vulnerability reporting and responsible disclosure
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — Community guidelines
+- **[CHANGELOG.md](CHANGELOG.md)** — Release notes
+
 ## 🏗️ Architecture
 
 ```text
